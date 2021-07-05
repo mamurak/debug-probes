@@ -6,7 +6,6 @@ import requests
 
 
 log = getLogger()
-kafka_bridge_post_content_type = 'application/vnd.kafka.v2+json'
 
 
 def kafka_producer(bootstrap_service_url):
@@ -31,7 +30,7 @@ def kafka_consumer(bootstrap_service_url, group_id='my-group',
 def publish_to_bridge(bridge_service_url, *messages, topic='my-topic'):
     payload = _to_bridge_payload(*messages)
     topic_url = _to_topic_url(bridge_service_url, topic)
-    headers = {'content-type': kafka_bridge_post_content_type}
+    headers = {'content-type': 'application/vnd.kafka.json.v2+json'}
     
     log.info(f'Publishing message to topic "{topic}" at {bridge_service_url}.')
     log.debug(f'Payload: {pformat(payload)}')
@@ -61,7 +60,6 @@ class KafkaHttpClient:
         self.topic = topic
         self.group_id = group_id
         self.client_id = client_id
-        self._content_type_header = {'content-type': kafka_bridge_post_content_type}
         log.info(f'Instantiating {self}.')
         self.client_url = self._register_client()
         self._subscribe()
@@ -84,7 +82,9 @@ class KafkaHttpClient:
         }
         log.info(f'{self} registering at {registration_url}.')
         response = requests.post(
-            registration_url, json=client_config, headers=self._content_type_header
+            registration_url,
+            json=client_config,
+            headers={'content-type': 'application/vnd.kafka.v2+json'}
         )
         log.debug(f'Received response {response}.')
         response_json_body = response.json()
@@ -96,7 +96,7 @@ class KafkaHttpClient:
         response = requests.post(
             self.client_url+'/subscription',
             json={'topics': [self.topic]},
-            headers=self._content_type_header,
+            headers={'content-type': 'application/vnd.kafka.v2+json'},
         )
         log.debug(f'Received response {response}.')
 
