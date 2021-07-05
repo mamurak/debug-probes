@@ -22,7 +22,7 @@ def publish_to_bridge(bridge_service_url, *messages, topic='my-topic'):
     headers = {'content-type': 'application/vnd.kafka.json.v2+json'}
     payload = _to_bridge_payload(*messages)
     topic_url = _to_topic_url(bridge_service_url, topic)
-    return requests.post(topic_url, payload, headers=headers)
+    return requests.post(topic_url, json=payload, headers=headers)
 
 
 def _to_bridge_payload(*items):
