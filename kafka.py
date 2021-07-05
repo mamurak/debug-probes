@@ -14,7 +14,7 @@ def kafka_consumer(bootstrap_service_url, group_id='my-group',
             'group.id': group_id,
         }
     )
-    consumer.subscribe(topic)
+    consumer.subscribe([topic])
     return consumer
 
 
