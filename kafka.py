@@ -1,16 +1,23 @@
+from logging import getLogger
+from pprint import pformat
+
 from confluent_kafka import Producer, Consumer
 import requests
 
 
+log = getLogger()
 kafka_bridge_request_headers = {'content-type': 'application/vnd.kafka.json.v2+json'}
 
 
 def kafka_producer(bootstrap_service_url):
+    log.info(f'Instantiating Kafka producer consuming {bootstrap_service_url}.')
     return Producer({'bootstrap.servers': bootstrap_service_url})
 
 
 def kafka_consumer(bootstrap_service_url, group_id='my-group',
                    topic='my-topic'):
+    log.info(f'Instantiating Kafka consumer of group "{group_id}" consuming topic "{topic}"'
+             f' from {bootstrap_service_url}.')
     consumer = Consumer(
         {
             'bootstrap.servers': bootstrap_service_url,
@@ -24,7 +31,15 @@ def kafka_consumer(bootstrap_service_url, group_id='my-group',
 def publish_to_bridge(bridge_service_url, *messages, topic='my-topic'):
     payload = _to_bridge_payload(*messages)
     topic_url = _to_topic_url(bridge_service_url, topic)
-    return requests.post(topic_url, json=payload, headers=kafka_bridge_request_headers)
+    
+    log.info(f'Publishing message to topic "{topic}" at {bridge_service_url}.')
+    log.debug(f'Payload: {pformat(payload)}')
+    
+    response = requests.post(topic_url, json=payload, headers=kafka_bridge_request_headers)
+    log.info(f'Received response {response}.')
+    log.debug(f'Response content: {response.json()}')
+    
+    return response
 
 
 def _to_bridge_payload(*items):
@@ -45,6 +60,7 @@ class KafkaHttpClient:
         self.topic = topic
         self.group_id = group_id
         self.client_id = client_id
+        log.info(f'Instantiating {self}.')
         self.client_url = self._register_client()
         self._subscribe()
 
@@ -62,21 +78,31 @@ class KafkaHttpClient:
             'format': 'json',
             'auto.offset.reset': 'earliest',
             'fetch.min.bytes': 512,
-            'enable.auto.commit': False,
+            'enable.auto.commit': True,
         }
+        log.info(f'{self} registering at {registration_url}.')
         response = requests.post(
             registration_url, json=client_config, headers=kafka_bridge_request_headers
         )
-        return response.json()['base_uri']
+        log.debug(f'Received response {response}.')
+        response_json_body = response.json()
+        log.debug(f'Received JSON content {pformat(response_json_body)}.')
+        return response_json_body['base_uri']
 
     def _subscribe(self):
-        requests.post(
+        self.info(f'{self} subscribing to topic {self.topic}.')
+        response = requests.post(
             self.client_url+'/subscription',
             json={'topics': [self.topic]},
             headers=kafka_bridge_request_headers
         )
+        log.debug(f'Received response {response}.')
 
     def poll(self):
+        log.info(f'{self} polling new messages.')
         headers = {'accept': 'application/vnd.kafka.json.v2+json'}
         response = requests.get(self.client_url+'/records', headers=headers)
-        return [item['value'] for item in response]
+        log.debug(f'Received response {response}.')
+        response_body = response.json()
+        log.debug(f'Received response body {pformat(response_body)}.')
+        return [item['value'] for item in response_body]
