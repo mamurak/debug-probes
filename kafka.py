@@ -92,7 +92,7 @@ class KafkaHttpClient:
         return response_json_body['base_uri']
 
     def _subscribe(self):
-        self.info(f'{self} subscribing to topic {self.topic}.')
+        log.info(f'{self} subscribing to topic {self.topic}.')
         response = requests.post(
             self.client_url+'/subscription',
             json={'topics': [self.topic]},
